@@ -229,30 +229,10 @@ jobs:
           fi
           copilot --version
 
-      - name: Initialize service ${{ env.SVC }} if not exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Check if service exists
-          if ! copilot svc show --app "$APP" --name "$SVC" >/dev/null 2>&1; then
-            echo "Service $SVC not found, initializing..."
-            # Read service type from manifest (everything after "type: ")
-            SVC_TYPE=$(grep '^type:' copilot/$SVC/manifest.yml | sed 's/^type:[[:space:]]*//')
-            echo "Service type: $SVC_TYPE"
-            
-            # Initialize service based on manifest
-            copilot svc init \
-              --app "$APP" \
-              --name "$SVC" \
-              --svc-type "$SVC_TYPE" \
-              --dockerfile ./Dockerfile
-          else
-            echo "Service $SVC already exists"
-          fi
-
       - name: Deploy service ${{ env.SVC }} to env ${{ env.ENV }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "copilot svc deploy --app '$APP' --env '${ENV}' --name '${SVC}'"
+          echo "Deploying service '$SVC' to environment '${ENV}' in app '$APP'"
+          # copilot svc deploy will automatically handle service initialization if manifest exists
           copilot svc deploy --app "$APP" --env "$ENV" --name "$SVC"
