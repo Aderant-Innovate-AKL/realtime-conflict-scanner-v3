@@ -171,6 +171,22 @@ jobs:
             echo "App $APP already exists"
           fi
 
+      - name: Initialize environment ${{ matrix.env }} if not exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Check if environment exists
+          if ! copilot env show --app "$APP" --name "${{ matrix.env }}" >/dev/null 2>&1; then
+            echo "Environment ${{ matrix.env }} not found, initializing..."
+            # Initialize environment with default VPC (use --default-config for non-interactive)
+            copilot env init \
+              --app "$APP" \
+              --name "${{ matrix.env }}" \
+              --default-config
+          else
+            echo "Environment ${{ matrix.env }} already exists"
+          fi
+
       - name: Deploy environment ${{ matrix.env }}
         shell: bash
         run: |
