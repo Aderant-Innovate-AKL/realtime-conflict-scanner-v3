@@ -236,16 +236,14 @@ jobs:
           # Check if service exists in AWS
           if ! copilot svc show --app "$APP" --name "$SVC" >/dev/null 2>&1; then
             echo "Service $SVC not registered, registering from manifest..."
-            # Use copilot svc init with manifest file (non-interactive)
-            cd copilot/$SVC
+            # Since manifest already exists, just register the service with minimal params
+            # Copilot will use the existing manifest.yml
             copilot svc init \
               --app "$APP" \
               --name "$SVC" \
               --svc-type "Load Balanced Web Service" \
-              --dockerfile ../../Dockerfile \
-              --port 3000 \
-              --no-deploy
-            cd ../..
+              --dockerfile ./Dockerfile \
+              --port 3000
           else
             echo "Service $SVC already registered"
           fi
