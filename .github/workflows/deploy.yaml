@@ -47,7 +47,7 @@ jobs:
             echo "copilot/.workspace not found." >&2
             exit 1
           fi
-          APP="$(awk -F': *' '/^application:/ {print $2; exit}' copilot/.workspace)"
+          APP="$(awk -F': *' '/^application:/ {gsub(/^[ \t]+|[ \t\r\n]+$/, "", $2); print $2; exit}' copilot/.workspace)"
           if [[ -z "$APP" ]]; then
             echo "Could not parse 'application:' from copilot/.workspace" >&2
             exit 1
