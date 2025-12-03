@@ -159,6 +159,18 @@ jobs:
           fi
           copilot --version
 
+      - name: Initialize Copilot app if not exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Check if app exists in AWS
+          if ! copilot app show --name "$APP" >/dev/null 2>&1; then
+            echo "App $APP not found in AWS, initializing..."
+            copilot app init "$APP"
+          else
+            echo "App $APP already exists"
+          fi
+
       - name: Deploy environment ${{ matrix.env }}
         shell: bash
         run: |
