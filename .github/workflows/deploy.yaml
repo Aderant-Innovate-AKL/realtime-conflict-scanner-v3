@@ -61,12 +61,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Get envs/services JSON (names only)
-          copilot env ls --app "$APP" --json > envs.json || echo '{"environments":[]}' > envs.json
-          copilot svc ls --app "$APP" --json > svcs.json || echo '{"services":[]}' > svcs.json
-
-          ENV_JSON="$(jq -r '[.environments[]?.name]' envs.json)"
-          SVC_JSON="$(jq -r '[.services[]?.name]' svcs.json)"
+          # Discover environments from filesystem (copilot/environments/*)
+          ENV_JSON="[]"
+          if [ -d "copilot/environments" ]; then
+            ENV_JSON=$(find copilot/environments -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          fi
+          
+          # Discover services from filesystem (copilot/*)
+          SVC_JSON="[]"
+          if [ -d "copilot" ]; then
+            SVC_JSON=$(find copilot -mindepth 1 -maxdepth 1 -type d ! -name "environments" ! -name "pipelines" -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          fi
 
           echo "ENV_JSON: $ENV_JSON"
           echo "SVC_JSON: $SVC_JSON"
