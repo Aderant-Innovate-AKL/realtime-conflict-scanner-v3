@@ -93,6 +93,7 @@ Risk Level Guidelines:
 - HIGH: Significant red flags, immediate review and action required
 - CRITICAL: Severe issues, potential legal/regulatory exposure, immediate escalation required
 
+Generate a list of the top 10 potential conflicts of interest available in the articles.
 Be specific and cite actual content from the articles. Only include genuine concerns, not speculation.`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

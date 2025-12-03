@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { names, variants } = body;
+    const { names, variants, pageSize = 20, timeRange = 1 } = body;
 
     // Combine all search terms
     const searchTerms = [names, variants]
@@ -26,12 +26,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate the "from" date based on timeRange (in months)
+    const fromDate = new Date();
+    fromDate.setMonth(fromDate.getMonth() - timeRange);
+    const fromDateStr = fromDate.toISOString().split("T")[0];
+
+    // Ensure pageSize is within valid range (1-100)
+    const validPageSize = Math.min(Math.max(1, pageSize), 100);
+
     // Search NewsAPI
     const url = new URL("https://newsapi.org/v2/everything");
     url.searchParams.append("q", searchTerms);
     url.searchParams.append("sortBy", "relevancy");
-    url.searchParams.append("pageSize", "20");
+    url.searchParams.append("pageSize", String(validPageSize));
     url.searchParams.append("language", "en");
+    url.searchParams.append("from", fromDateStr);
     console.log("NewsAPI URL:", url.toString());
     const response = await fetch(url.toString(), {
       headers: {

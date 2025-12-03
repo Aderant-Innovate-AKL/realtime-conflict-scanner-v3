@@ -27,6 +27,8 @@ export default function ConflictScanner() {
   const [formData, setFormData] = useState({
     names: "",
     variants: "",
+    pageSize: "20",
+    timeRange: "1",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [newsResults, setNewsResults] = useState<NewsArticle[]>([]);
@@ -59,6 +61,8 @@ export default function ConflictScanner() {
         body: JSON.stringify({
           names: formData.names,
           variants: formData.variants,
+          pageSize: parseInt(formData.pageSize),
+          timeRange: parseInt(formData.timeRange),
         }),
       });
 
@@ -124,6 +128,27 @@ export default function ConflictScanner() {
         return "○";
     }
   };
+
+  const getRiskPriority = (level: string) => {
+    switch (level) {
+      case "CRITICAL":
+        return 0;
+      case "HIGH":
+        return 1;
+      case "MEDIUM":
+        return 2;
+      case "LOW":
+        return 3;
+      default:
+        return 4;
+    }
+  };
+
+  const sortedConflicts = analysis?.conflicts
+    ? [...analysis.conflicts].sort(
+        (a, b) => getRiskPriority(a.severity) - getRiskPriority(b.severity)
+      )
+    : [];
 
   return (
     <div className="min-h-screen bg-[#0a0b0d] text-zinc-100">
@@ -206,6 +231,50 @@ export default function ConflictScanner() {
                   <p className="mt-2 text-xs text-zinc-500">
                     Company names or spelling variations (optional)
                   </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                      Number of Articles
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.pageSize}
+                      onChange={(e) =>
+                        setFormData({ ...formData, pageSize: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl bg-zinc-800/50 border border-zinc-700 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all"
+                    />
+                    <p className="mt-2 text-xs text-zinc-500">
+                      Max 100 articles
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                      Time Range
+                    </label>
+                    <select
+                      value={formData.timeRange}
+                      onChange={(e) =>
+                        setFormData({ ...formData, timeRange: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl bg-zinc-800/50 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all"
+                    >
+                      <option value="1">Last 1 month</option>
+                      <option value="2">Last 2 months</option>
+                      <option value="3">Last 3 months</option>
+                      <option value="6">Last 6 months</option>
+                      <option value="12">Last 12 months</option>
+                      <option value="24">Last 24 months</option>
+                    </select>
+                    <p className="mt-2 text-xs text-zinc-500">
+                      News from selected period
+                    </p>
+                  </div>
                 </div>
 
                 <button
@@ -411,13 +480,13 @@ export default function ConflictScanner() {
                 </p>
 
                 {/* Conflicts */}
-                {analysis.conflicts && analysis.conflicts.length > 0 && (
+                {sortedConflicts.length > 0 && (
                   <div className="mb-6">
                     <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
                       Identified Conflicts
                     </h3>
                     <div className="space-y-3">
-                      {analysis.conflicts.map((conflict, idx) => (
+                      {sortedConflicts.map((conflict, idx) => (
                         <div
                           key={idx}
                           className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50"
@@ -439,12 +508,12 @@ export default function ConflictScanner() {
                             >
                               {conflict.severity}
                             </span>
-                          </div>
+        </div>
                           {conflict.url && (
-                            <a
+          <a
                               href={conflict.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+            target="_blank"
+            rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 mt-3 text-xs text-violet-400 hover:text-violet-300 transition-colors"
                             >
                               View source
@@ -519,8 +588,8 @@ export default function ConflictScanner() {
                     <a
                       key={idx}
                       href={article.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+            target="_blank"
+            rel="noopener noreferrer"
                       className="block bg-zinc-800/30 rounded-xl p-4 border border-zinc-700/50 hover:border-zinc-600 transition-colors group"
                     >
                       <h4 className="font-medium text-zinc-200 group-hover:text-violet-300 transition-colors line-clamp-2">
