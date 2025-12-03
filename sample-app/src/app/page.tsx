@@ -258,16 +258,15 @@ export default function ConflictScanner() {
                   Aderant
                 </span>
               </div>
-              <h1 className="text-5xl font-light tracking-[0.3em] text-white mb-8">
+              {/* <h1 className="text-5xl font-light tracking-[0.3em] text-white mb-8">
                 STRIDYN
-              </h1>
+              </h1> */}
               <h2 className="text-2xl font-semibold text-white mb-6">
                 Real-time Conflict Scanner
               </h2>
               <p className="text-white/70 text-lg leading-relaxed max-w-lg">
-                When running your business becomes a distraction, no one wins.
-                The world&apos;s best firms rely on our solutions to identify
-                potential conflicts and keep their businesses moving forward.
+                Enter search information to scan news sources and identify potential
+              conflicts of interest with AI-powered risk assessment.
               </p>
             </div>
 
