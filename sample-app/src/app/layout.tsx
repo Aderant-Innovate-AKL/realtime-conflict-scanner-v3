@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Conflict Scanner | Real-time Risk Analysis",
+  title: "Stridyn | Conflict Scanner",
   description:
-    "AI-powered conflict of interest scanner with real-time news analysis and risk assessment",
+    "Aderant Stridyn - AI-powered conflict of interest scanner with real-time news analysis and risk assessment for legal industry",
 };
 
 export default function RootLayout({
