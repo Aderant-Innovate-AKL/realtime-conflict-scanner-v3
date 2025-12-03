@@ -23,6 +23,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Install dependencies (jq + Copilot)
@@ -140,6 +141,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Install Copilot CLI
@@ -187,6 +189,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Install Copilot CLI
