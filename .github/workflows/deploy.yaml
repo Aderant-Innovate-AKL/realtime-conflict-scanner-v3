@@ -229,10 +229,30 @@ jobs:
           fi
           copilot --version
 
+      - name: Register service ${{ env.SVC }} if not exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Check if service exists in AWS
+          if ! copilot svc show --app "$APP" --name "$SVC" >/dev/null 2>&1; then
+            echo "Service $SVC not registered, registering from manifest..."
+            # Use copilot svc init with manifest file (non-interactive)
+            cd copilot/$SVC
+            copilot svc init \
+              --app "$APP" \
+              --name "$SVC" \
+              --svc-type "Load Balanced Web Service" \
+              --dockerfile ../../Dockerfile \
+              --port 3000 \
+              --no-deploy
+            cd ../..
+          else
+            echo "Service $SVC already registered"
+          fi
+
       - name: Deploy service ${{ env.SVC }} to env ${{ env.ENV }}
         shell: bash
         run: |
           set -euo pipefail
           echo "Deploying service '$SVC' to environment '${ENV}' in app '$APP'"
-          # copilot svc deploy will automatically handle service initialization if manifest exists
           copilot svc deploy --app "$APP" --env "$ENV" --name "$SVC"
