@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface AnalysisResult {
   summary: string;
@@ -26,17 +26,72 @@ interface NewsArticle {
 export default function ConflictScanner() {
   const [formData, setFormData] = useState({
     names: "",
-    variants: "",
     pageSize: "20",
     timeRange: "1",
   });
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [newsResults, setNewsResults] = useState<NewsArticle[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<
     "idle" | "searching" | "analyzing" | "complete"
   >("idle");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExtracting(true);
+    setError(null);
+    setUploadedFileName(file.name);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/extract-keywords", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to extract keywords");
+      }
+
+      const data = await response.json();
+      setKeywords((prev) => {
+        const newKeywords = data.keywords.filter(
+          (k: string) => !prev.includes(k)
+        );
+        return [...prev, ...newKeywords];
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process file");
+    } finally {
+      setIsExtracting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const addKeyword = () => {
+    const trimmed = newKeyword.trim();
+    if (trimmed && !keywords.includes(trimmed)) {
+      setKeywords([...keywords, trimmed]);
+      setNewKeyword("");
+    }
+  };
+
+  const removeKeyword = (keyword: string) => {
+    setKeywords(keywords.filter((k) => k !== keyword));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,16 +102,16 @@ export default function ConflictScanner() {
 
     try {
       setCurrentStep("searching");
-      const searchTerms = [formData.names, formData.variants]
-        .filter(Boolean)
-        .join(", ");
+      // Combine terms and keywords for search
+      const allTerms = [formData.names, ...keywords].filter(Boolean);
+      const searchTerms = allTerms.join(", ");
 
       const newsResponse = await fetch("/api/search-news", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           names: formData.names,
-          variants: formData.variants,
+          variants: keywords.join(", "),
           pageSize: parseInt(formData.pageSize),
           timeRange: parseInt(formData.timeRange),
         }),
@@ -151,7 +206,6 @@ export default function ConflictScanner() {
       <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-[#0f1628] via-[#1a1f3a] to-[#2d1f3d]">
         {/* Decorative curved shapes */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Large curved arc - right side */}
           <svg
             className="absolute -right-[300px] top-1/2 -translate-y-1/2 w-[900px] h-[900px] opacity-10"
             viewBox="0 0 400 400"
@@ -172,7 +226,6 @@ export default function ConflictScanner() {
               </linearGradient>
             </defs>
           </svg>
-          {/* Smaller arc - bottom right */}
           <svg
             className="absolute -right-[100px] -bottom-[200px] w-[600px] h-[600px] opacity-10"
             viewBox="0 0 400 400"
@@ -193,7 +246,6 @@ export default function ConflictScanner() {
               </linearGradient>
             </defs>
           </svg>
-          {/* Top glow */}
           <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-gradient-to-b from-rose-900/20 to-transparent blur-3xl" />
         </div>
 
@@ -213,9 +265,9 @@ export default function ConflictScanner() {
                 Real-time Conflict Scanner
               </h2>
               <p className="text-white/70 text-lg leading-relaxed max-w-lg">
-                When running your business becomes a distraction, no one wins. 
-                The world&apos;s best firms rely on our solutions to identify potential 
-                conflicts and keep their businesses moving forward.
+                When running your business becomes a distraction, no one wins.
+                The world&apos;s best firms rely on our solutions to identify
+                potential conflicts and keep their businesses moving forward.
               </p>
             </div>
 
@@ -231,7 +283,7 @@ export default function ConflictScanner() {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Names
+                    Terms
                   </label>
                   <input
                     type="text"
@@ -239,25 +291,131 @@ export default function ConflictScanner() {
                     onChange={(e) =>
                       setFormData({ ...formData, names: e.target.value })
                     }
-                    placeholder="e.g., John Smith, Jane Doe"
+                    placeholder="e.g., Apple, Microsoft, Google"
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     required
                   />
                 </div>
 
+                {/* File Upload Section */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Variants
+                    Upload Document
                   </label>
-                  <input
-                    type="text"
-                    value={formData.variants}
-                    onChange={(e) =>
-                      setFormData({ ...formData, variants: e.target.value })
-                    }
-                    placeholder="e.g., Smith Industries, Smith & Co"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  />
+                  <div
+                    className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-all ${
+                      isExtracting
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".txt,.pdf,.doc,.docx,.rtf"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={isExtracting}
+                    />
+                    {isExtracting ? (
+                      <div className="flex items-center justify-center gap-2 text-blue-600">
+                        <svg
+                          className="w-5 h-5 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        <span className="text-sm">Extracting parties...</span>
+                      </div>
+                    ) : (
+                      <div className="text-gray-500">
+                        <svg
+                          className="w-8 h-8 mx-auto mb-2 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <p className="text-sm">
+                          Drop a file or click to upload
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          AI will extract key parties
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {uploadedFileName && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Last uploaded: {uploadedFileName}
+                    </p>
+                  )}
+                </div>
+
+                {/* Keywords Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Extracted Parties ({keywords.length})
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={newKeyword}
+                      onChange={(e) => setNewKeyword(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addKeyword())}
+                      placeholder="Add keyword..."
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={addKeyword}
+                      className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {keywords.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                      {keywords.map((keyword, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium"
+                        >
+                          {keyword}
+                          <button
+                            type="button"
+                            onClick={() => removeKeyword(keyword)}
+                            className="w-4 h-4 rounded-full hover:bg-blue-200 flex items-center justify-center"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">
+                      Upload a document or add keywords manually
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -474,7 +632,6 @@ export default function ConflictScanner() {
       <footer className="bg-[#0a1628] py-6 px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {/* Logo Circle */}
             <div className="w-10 h-10 rounded-full border-2 border-blue-500 flex items-center justify-center">
               <span className="text-blue-500 font-semibold text-sm">A</span>
             </div>
