@@ -54,24 +54,35 @@ export default function ConflictScanner() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/extract-keywords", {
+      console.log("Uploading file:", file.name, "Size:", file.size);
+
+      // Use proxy API to call n8n webhook
+      const response = await fetch("/api/extract-parties", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to extract keywords");
+        throw new Error(errorData.error || "Failed to extract parties");
       }
 
       const data = await response.json();
-      setKeywords((prev) => {
-        const newKeywords = data.keywords.filter(
-          (k: string) => !prev.includes(k)
-        );
-        return [...prev, ...newKeywords];
-      });
+      console.log("Extracted parties:", data);
+      
+      // Handle the response format
+      if (data.success && data.terms) {
+        setKeywords((prev) => {
+          const newKeywords = data.terms.filter(
+            (k: string) => !prev.includes(k)
+          );
+          return [...prev, ...newKeywords];
+        });
+      } else {
+        throw new Error("Invalid response from extraction service");
+      }
     } catch (err) {
+      console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to process file");
     } finally {
       setIsExtracting(false);
