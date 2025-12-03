@@ -236,8 +236,8 @@ jobs:
           # Check if service exists
           if ! copilot svc show --app "$APP" --name "$SVC" >/dev/null 2>&1; then
             echo "Service $SVC not found, initializing..."
-            # Read service type from manifest
-            SVC_TYPE=$(grep '^type:' copilot/$SVC/manifest.yml | awk '{print $2}')
+            # Read service type from manifest (everything after "type: ")
+            SVC_TYPE=$(grep '^type:' copilot/$SVC/manifest.yml | sed 's/^type:[[:space:]]*//')
             echo "Service type: $SVC_TYPE"
             
             # Initialize service based on manifest
