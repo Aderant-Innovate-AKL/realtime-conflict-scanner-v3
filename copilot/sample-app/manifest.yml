@@ -1,0 +1,54 @@
+# The manifest for the "sample-app" service.
+# Read the full specification for the "Load Balanced Web Service" type at:
+# https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
+
+# Your service name will be used in naming your resources like log groups, ECS services, etc.
+name: sample-app
+type: Load Balanced Web Service
+
+# Distribute traffic to your service.
+http:
+  # Requests to this path will be forwarded to your service.
+  # To match all requests you can use the "/" path.
+  path: '/'
+  # You can specify a custom health check path. The default is "/".
+  healthcheck:
+    path: /
+    success_codes: '200'
+    healthy_threshold: 3
+    unhealthy_threshold: 2
+    interval: 15s
+    timeout: 10s
+
+# Configuration for your containers and service.
+image:
+  # Docker build arguments. For additional overrides: https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#image-build
+  build:
+    dockerfile: Dockerfile
+    context: .
+  # Port exposed through your container to route traffic to it.
+  port: 3000
+
+cpu: 256       # Number of CPU units for the task.
+memory: 512    # Amount of memory in MiB used by the task.
+count: 1       # Number of tasks that should be running in your service.
+exec: true     # Enable running commands in your container.
+
+# Optional fields for more advanced use-cases.
+#
+# variables:
+#   LOG_LEVEL: info
+# secrets:
+#   GITHUB_TOKEN: GITHUB_TOKEN
+# environments:
+#   test:
+#     count: 2
+
+network:
+  connect: true # Enable Service Connect for intra-environment traffic between services.
+
+# You can override any of the values defined above by environment.
+# environments:
+#   test:
+#     count: 2               # Number of tasks to run for the "test" environment.
+
