@@ -100,20 +100,18 @@ export default function ConflictScanner() {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.text(`Search Terms: ${formData.names || "N/A"}`, margin, yPos);
-    yPos += 8;
+    
+    // Combine search terms and related parties
+    const allSearchTerms = [formData.names, ...keywords].filter(Boolean).join(", ");
+    doc.text("Search Terms:", margin, yPos);
+    yPos += 6;
+    yPos = addWrappedText(allSearchTerms || "N/A", margin + 5, yPos, contentWidth - 10, 5);
+    yPos += 5;
+    
     doc.text(`Time Range: ${formData.timeRange} month(s)`, margin, yPos);
     yPos += 8;
     doc.text(`Articles Searched: ${formData.pageSize}`, margin, yPos);
     yPos += 8;
-
-    if (keywords.length > 0) {
-      doc.text("Related Parties:", margin, yPos);
-      yPos += 6;
-      const keywordsText = keywords.join(", ");
-      yPos = addWrappedText(keywordsText, margin + 5, yPos, contentWidth - 10, 5);
-      yPos += 5;
-    }
 
     if (uploadedFileName) {
       doc.text(`Uploaded Document: ${uploadedFileName}`, margin, yPos);
