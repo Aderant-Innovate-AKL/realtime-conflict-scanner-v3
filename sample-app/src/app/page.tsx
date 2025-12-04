@@ -24,6 +24,7 @@ interface NewsArticle {
 }
 
 export default function ConflictScanner() {
+  const [searchMode, setSearchMode] = useState<"terms" | "document">("terms");
   const [formData, setFormData] = useState({
     names: "",
     pageSize: "20",
@@ -102,11 +103,17 @@ export default function ConflictScanner() {
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     
-    // Combine search terms and related parties
-    const allSearchTerms = [formData.names, ...keywords].filter(Boolean).join(", ");
+    // Show search mode and terms
+    doc.text(`Search Mode: ${searchMode === "terms" ? "Manual Terms" : "Document Upload"}`, margin, yPos);
+    yPos += 8;
+    
+    // Show search terms based on mode
+    const searchTermsText = searchMode === "terms" 
+      ? formData.names 
+      : keywords.join(", ");
     doc.text("Search Terms:", margin, yPos);
     yPos += 6;
-    yPos = addWrappedText(allSearchTerms || "N/A", margin + 5, yPos, contentWidth - 10, 5);
+    yPos = addWrappedText(searchTermsText || "N/A", margin + 5, yPos, contentWidth - 10, 5);
     yPos += 5;
     
     doc.text(`Time Range: ${formData.timeRange} month(s)`, margin, yPos);
@@ -374,6 +381,17 @@ export default function ConflictScanner() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation based on mode
+    if (searchMode === "terms" && !formData.names.trim()) {
+      setError("Please enter search terms");
+      return;
+    }
+    if (searchMode === "document" && keywords.length === 0) {
+      setError("Please upload a document to extract parties first");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setNewsResults([]);
@@ -381,15 +399,28 @@ export default function ConflictScanner() {
 
     try {
       setCurrentStep("searching");
-      const allTerms = [formData.names, ...keywords].filter(Boolean);
-      const searchTerms = allTerms.join(", ");
+      
+      // Determine search terms based on mode
+      let searchTerms: string;
+      let namesParam: string;
+      let variantsParam: string;
+      
+      if (searchMode === "terms") {
+        searchTerms = formData.names;
+        namesParam = formData.names;
+        variantsParam = "";
+      } else {
+        searchTerms = keywords.join(", ");
+        namesParam = keywords[0] || "";
+        variantsParam = keywords.slice(1).join(", ");
+      }
 
       const newsResponse = await fetch("/api/search-news", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          names: formData.names,
-          variants: keywords.join(", "),
+          names: namesParam,
+          variants: variantsParam,
           pageSize: parseInt(formData.pageSize),
           timeRange: parseInt(formData.timeRange),
         }),
@@ -554,146 +585,192 @@ export default function ConflictScanner() {
                 Conflict Search
               </h3>
               <p className="text-gray-500 mb-6">
-                Enter information to scan for potential conflicts
+                Choose a search method to scan for potential conflicts
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Terms
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.names}
-                    onChange={(e) =>
-                      setFormData({ ...formData, names: e.target.value })
-                    }
-                    placeholder="e.g., Apple, Microsoft, Google"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    required
-                  />
-                </div>
-
-                {/* File Upload Section */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              {/* Mode Tabs */}
+              <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => setSearchMode("terms")}
+                  className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
+                    searchMode === "terms"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search Terms
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchMode("document")}
+                  className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
+                    searchMode === "document"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                     Upload Document
-                  </label>
-                  <div
-                    className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-all ${
-                      isExtracting
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".txt,.pdf,.doc,.docx,.rtf"
-                      onChange={handleFileUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      disabled={isExtracting}
-                    />
-                    {isExtracting ? (
-                      <div className="flex items-center justify-center gap-2 text-blue-600">
-                        <svg
-                          className="w-5 h-5 animate-spin"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                          />
-                        </svg>
-                        <span className="text-sm">Extracting parties...</span>
-                      </div>
-                    ) : (
-                      <div className="text-gray-500">
-                        <svg
-                          className="w-8 h-8 mx-auto mb-2 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <p className="text-sm">Drop a file or click to upload</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          AI will extract key parties
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {uploadedFileName && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Last uploaded: {uploadedFileName}
-                    </p>
-                  )}
-                </div>
+                  </span>
+                </button>
+              </div>
 
-                {/* Keywords Section */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Extracted Parties ({keywords.length})
-                  </label>
-                  <div className="flex gap-2 mb-2">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Terms Mode */}
+                {searchMode === "terms" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Search Terms
+                    </label>
                     <input
                       type="text"
-                      value={newKeyword}
-                      onChange={(e) => setNewKeyword(e.target.value)}
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && (e.preventDefault(), addKeyword())
+                      value={formData.names}
+                      onChange={(e) =>
+                        setFormData({ ...formData, names: e.target.value })
                       }
-                      placeholder="Add keyword..."
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., Apple, Microsoft, Google"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
-                    <button
-                      type="button"
-                      onClick={addKeyword}
-                      className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition-colors"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  {keywords.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-gray-50 rounded-lg">
-                      {keywords.map((keyword, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium"
-                        >
-                          {keyword}
-                          <button
-                            type="button"
-                            onClick={() => removeKeyword(keyword)}
-                            className="w-4 h-4 rounded-full hover:bg-blue-200 flex items-center justify-center"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 italic">
-                      Upload a document or add keywords manually
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Enter company names, person names, or keywords to search
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {/* Document Mode */}
+                {searchMode === "document" && (
+                  <>
+                    {/* File Upload Section */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Upload Document
+                      </label>
+                      <div
+                        className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-all ${
+                          isExtracting
+                            ? "border-blue-400 bg-blue-50"
+                            : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".txt,.pdf,.doc,.docx,.rtf"
+                          onChange={handleFileUpload}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          disabled={isExtracting}
+                        />
+                        {isExtracting ? (
+                          <div className="flex items-center justify-center gap-2 text-blue-600">
+                            <svg
+                              className="w-5 h-5 animate-spin"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                              />
+                            </svg>
+                            <span className="text-sm">Extracting parties...</span>
+                          </div>
+                        ) : (
+                          <div className="text-gray-500">
+                            <svg
+                              className="w-8 h-8 mx-auto mb-2 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                              />
+                            </svg>
+                            <p className="text-sm">Drop a file or click to upload</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              AI will extract key parties for conflict search
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {uploadedFileName && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Uploaded: {uploadedFileName}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Extracted Parties Section */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Extracted Parties ({keywords.length})
+                      </label>
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={newKeyword}
+                          onChange={(e) => setNewKeyword(e.target.value)}
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && (e.preventDefault(), addKeyword())
+                          }
+                          placeholder="Add party manually..."
+                          className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={addKeyword}
+                          className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {keywords.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                          {keywords.map((keyword, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium"
+                            >
+                              {keyword}
+                              <button
+                                type="button"
+                                onClick={() => removeKeyword(keyword)}
+                                className="w-4 h-4 rounded-full hover:bg-blue-200 flex items-center justify-center"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">
+                          Upload a document to extract parties, or add them manually
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
