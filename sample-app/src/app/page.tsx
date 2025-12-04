@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { jsPDF } from "jspdf";
 
 interface AnalysisResult {
   summary: string;
@@ -44,9 +43,11 @@ export default function ConflictScanner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate PDF Report
-  const generatePDFReport = () => {
+  const generatePDFReport = async () => {
     if (!analysis) return;
 
+    // Dynamically import jsPDF to avoid SSR issues
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -306,7 +307,7 @@ export default function ConflictScanner() {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
       doc.text(
-        `Aderant STRIDYN - Conflict Risk Analysis | Page ${i} of ${pageCount}`,
+        `Aderant - Conflict Risk Analysis | Page ${i} of ${pageCount}`,
         margin,
         292
       );
@@ -538,7 +539,7 @@ export default function ConflictScanner() {
                 </span>
               </div>
               <h1 className="text-4xl font-light tracking-[0.2em] text-white mb-6">
-                STRIDYN
+                Conflict Scanner
               </h1>
               <h2 className="text-2xl font-semibold text-white mb-6">
                 Real-time Conflict Scanner
@@ -917,7 +918,7 @@ export default function ConflictScanner() {
                         </p>
                         <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
                           <span>{article.source?.name || "Unknown"}</span>
-                          <span>
+                          <span suppressHydrationWarning>
                             {new Date(article.publishedAt).toLocaleDateString()}
                           </span>
                         </div>
@@ -939,7 +940,7 @@ export default function ConflictScanner() {
               <span className="text-blue-500 font-semibold text-sm">A</span>
             </div>
             <span className="text-white/80 tracking-[0.2em] text-sm font-light">
-              S T R I D Y N
+              Conflict Scanner
             </span>
           </div>
           <div className="flex items-center gap-6 text-sm text-white/60">
