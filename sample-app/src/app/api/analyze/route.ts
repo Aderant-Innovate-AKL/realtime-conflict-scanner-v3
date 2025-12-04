@@ -127,11 +127,23 @@ Be specific and cite actual content from the articles. Only include genuine conc
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content;
+    let content = data.choices[0]?.message?.content;
 
     if (!content) {
       throw new Error("No analysis content returned from AI");
     }
+
+    // Clean up the response - remove markdown code blocks if present
+    content = content.trim();
+    if (content.startsWith("```json")) {
+      content = content.slice(7);
+    } else if (content.startsWith("```")) {
+      content = content.slice(3);
+    }
+    if (content.endsWith("```")) {
+      content = content.slice(0, -3);
+    }
+    content = content.trim();
 
     // Parse the JSON response
     const analysis = JSON.parse(content) as AnalysisResult;

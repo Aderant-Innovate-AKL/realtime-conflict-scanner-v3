@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { jsPDF } from "jspdf";
 
 interface AnalysisResult {
   summary: string;
@@ -42,6 +43,285 @@ export default function ConflictScanner() {
   >("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Generate PDF Report
+  const generatePDFReport = () => {
+    if (!analysis) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let yPos = 20;
+
+    // Helper function to add text with word wrap
+    const addWrappedText = (
+      text: string,
+      x: number,
+      y: number,
+      maxWidth: number,
+      lineHeight: number
+    ) => {
+      const lines = doc.splitTextToSize(text, maxWidth);
+      doc.text(lines, x, y);
+      return y + lines.length * lineHeight;
+    };
+
+    // Helper function to check page break
+    const checkPageBreak = (requiredSpace: number) => {
+      if (yPos + requiredSpace > 280) {
+        doc.addPage();
+        yPos = 20;
+      }
+    };
+
+    // Title
+    doc.setFillColor(15, 22, 40);
+    doc.rect(0, 0, pageWidth, 45, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text("Conflict Risk Analysis Report", margin, 28);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, 38);
+
+    yPos = 60;
+    doc.setTextColor(0, 0, 0);
+
+    // Section 1: Client Basic Information
+    doc.setFillColor(30, 136, 229);
+    doc.rect(margin, yPos - 5, contentWidth, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("1. Client Basic Information", margin + 5, yPos + 2);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Search Terms: ${formData.names || "N/A"}`, margin, yPos);
+    yPos += 8;
+    doc.text(`Time Range: ${formData.timeRange} month(s)`, margin, yPos);
+    yPos += 8;
+    doc.text(`Articles Searched: ${formData.pageSize}`, margin, yPos);
+    yPos += 8;
+
+    if (keywords.length > 0) {
+      doc.text("Related Parties:", margin, yPos);
+      yPos += 6;
+      const keywordsText = keywords.join(", ");
+      yPos = addWrappedText(keywordsText, margin + 5, yPos, contentWidth - 10, 5);
+      yPos += 5;
+    }
+
+    if (uploadedFileName) {
+      doc.text(`Uploaded Document: ${uploadedFileName}`, margin, yPos);
+      yPos += 8;
+    }
+
+    yPos += 10;
+    checkPageBreak(50);
+
+    // Section 2: AI Risk Assessment
+    doc.setFillColor(30, 136, 229);
+    doc.rect(margin, yPos - 5, contentWidth, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("2. AI Risk Assessment", margin + 5, yPos + 2);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+
+    // Risk Level Badge
+    const riskColors: Record<string, [number, number, number]> = {
+      LOW: [34, 197, 94],
+      MEDIUM: [251, 191, 36],
+      HIGH: [249, 115, 22],
+      CRITICAL: [239, 68, 68],
+    };
+    const riskColor = riskColors[analysis.riskLevel] || [156, 163, 175];
+    doc.setFillColor(riskColor[0], riskColor[1], riskColor[2]);
+    doc.roundedRect(margin, yPos - 3, 50, 10, 2, 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${analysis.riskLevel} RISK`, margin + 5, yPos + 4);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.text("Summary:", margin, yPos);
+    yPos += 6;
+    yPos = addWrappedText(analysis.summary, margin, yPos, contentWidth, 5);
+    yPos += 15;
+
+    checkPageBreak(60);
+
+    // Section 3: Identified Conflicts
+    doc.setFillColor(30, 136, 229);
+    doc.rect(margin, yPos - 5, contentWidth, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("3. Identified Conflicts & Related Parties", margin + 5, yPos + 2);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+
+    if (analysis.conflicts && analysis.conflicts.length > 0) {
+      const sortedConflicts = [...analysis.conflicts].sort(
+        (a, b) => getRiskPriority(a.severity) - getRiskPriority(b.severity)
+      );
+
+      sortedConflicts.forEach((conflict, idx) => {
+        checkPageBreak(40);
+
+        doc.setFont("helvetica", "bold");
+        doc.text(`${idx + 1}. ${conflict.title}`, margin, yPos);
+        yPos += 6;
+
+        // Severity badge
+        const sevColor = riskColors[conflict.severity] || [156, 163, 175];
+        doc.setFillColor(sevColor[0], sevColor[1], sevColor[2]);
+        doc.roundedRect(margin, yPos - 3, 30, 8, 2, 2, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.text(conflict.severity, margin + 3, yPos + 2);
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        yPos += 10;
+
+        doc.setFont("helvetica", "normal");
+        yPos = addWrappedText(conflict.description, margin, yPos, contentWidth, 5);
+        yPos += 3;
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Source: ${conflict.source}`, margin, yPos);
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        yPos += 12;
+      });
+    } else {
+      doc.text("No significant conflicts identified.", margin, yPos);
+      yPos += 10;
+    }
+
+    yPos += 5;
+    checkPageBreak(60);
+
+    // Section 4: Recent News Summary
+    doc.setFillColor(30, 136, 229);
+    doc.rect(margin, yPos - 5, contentWidth, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("4. Recent News Summary", margin + 5, yPos + 2);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+
+    if (newsResults.length > 0) {
+      doc.text(`Found ${newsResults.length} relevant news articles:`, margin, yPos);
+      yPos += 10;
+
+      // Show top 10 news
+      const topNews = newsResults.slice(0, 10);
+      topNews.forEach((article, idx) => {
+        checkPageBreak(25);
+
+        doc.setFont("helvetica", "bold");
+        const titleLines = doc.splitTextToSize(
+          `${idx + 1}. ${article.title}`,
+          contentWidth
+        );
+        doc.text(titleLines, margin, yPos);
+        yPos += titleLines.length * 5 + 2;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          `${article.source?.name || "Unknown"} - ${new Date(article.publishedAt).toLocaleDateString()}`,
+          margin,
+          yPos
+        );
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        yPos += 8;
+      });
+
+      if (newsResults.length > 10) {
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`... and ${newsResults.length - 10} more articles`, margin, yPos);
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        yPos += 10;
+      }
+    } else {
+      doc.text("No relevant news articles found.", margin, yPos);
+      yPos += 10;
+    }
+
+    yPos += 5;
+    checkPageBreak(60);
+
+    // Section 5: Recommendations
+    doc.setFillColor(30, 136, 229);
+    doc.rect(margin, yPos - 5, contentWidth, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("5. Recommended Actions", margin + 5, yPos + 2);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+
+    if (analysis.recommendations && analysis.recommendations.length > 0) {
+      analysis.recommendations.forEach((rec, idx) => {
+        checkPageBreak(15);
+        const bullet = `${idx + 1}.`;
+        doc.text(bullet, margin, yPos);
+        yPos = addWrappedText(rec, margin + 10, yPos, contentWidth - 10, 5);
+        yPos += 5;
+      });
+    } else {
+      doc.text("No specific recommendations at this time.", margin, yPos);
+      yPos += 10;
+    }
+
+    // Footer on last page
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFillColor(15, 22, 40);
+      doc.rect(0, 285, pageWidth, 15, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.text(
+        `Aderant STRIDYN - Conflict Risk Analysis | Page ${i} of ${pageCount}`,
+        margin,
+        292
+      );
+      doc.text(
+        "Confidential - For Internal Use Only",
+        pageWidth - margin - 50,
+        292
+      );
+    }
+
+    // Save the PDF
+    const fileName = `conflict-report-${formData.names.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(fileName);
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -54,35 +334,24 @@ export default function ConflictScanner() {
       const formData = new FormData();
       formData.append("file", file);
 
-      console.log("Uploading file:", file.name, "Size:", file.size);
-
-      // Use proxy API to call n8n webhook
-      const response = await fetch("/api/extract-parties", {
+      const response = await fetch("/api/extract-keywords", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to extract parties");
+        throw new Error(errorData.error || "Failed to extract keywords");
       }
 
       const data = await response.json();
-      console.log("Extracted parties:", data);
-      
-      // Handle the response format
-      if (data.success && data.terms) {
-        setKeywords((prev) => {
-          const newKeywords = data.terms.filter(
-            (k: string) => !prev.includes(k)
-          );
-          return [...prev, ...newKeywords];
-        });
-      } else {
-        throw new Error("Invalid response from extraction service");
-      }
+      setKeywords((prev) => {
+        const newKeywords = data.keywords.filter(
+          (k: string) => !prev.includes(k)
+        );
+        return [...prev, ...newKeywords];
+      });
     } catch (err) {
-      console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to process file");
     } finally {
       setIsExtracting(false);
@@ -113,7 +382,6 @@ export default function ConflictScanner() {
 
     try {
       setCurrentStep("searching");
-      // Combine terms and keywords for search
       const allTerms = [formData.names, ...keywords].filter(Boolean);
       const searchTerms = allTerms.join(", ");
 
@@ -269,15 +537,15 @@ export default function ConflictScanner() {
                   Aderant
                 </span>
               </div>
-              {/* <h1 className="text-5xl font-light tracking-[0.3em] text-white mb-8">
+              <h1 className="text-4xl font-light tracking-[0.2em] text-white mb-6">
                 STRIDYN
-              </h1> */}
+              </h1>
               <h2 className="text-2xl font-semibold text-white mb-6">
                 Real-time Conflict Scanner
               </h2>
               <p className="text-white/70 text-lg leading-relaxed max-w-lg">
-                Enter search information to scan news sources and identify potential
-              conflicts of interest with AI-powered risk assessment.
+                Enter search information to scan news sources and identify
+                potential conflicts of interest with AI-powered risk assessment.
               </p>
             </div>
 
@@ -365,9 +633,7 @@ export default function ConflictScanner() {
                             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                           />
                         </svg>
-                        <p className="text-sm">
-                          Drop a file or click to upload
-                        </p>
+                        <p className="text-sm">Drop a file or click to upload</p>
                         <p className="text-xs text-gray-400 mt-1">
                           AI will extract key parties
                         </p>
@@ -391,7 +657,9 @@ export default function ConflictScanner() {
                       type="text"
                       value={newKeyword}
                       onChange={(e) => setNewKeyword(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addKeyword())}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && (e.preventDefault(), addKeyword())
+                      }
                       placeholder="Add keyword..."
                       className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -514,6 +782,31 @@ export default function ConflictScanner() {
       {(analysis || newsResults.length > 0) && (
         <div className="bg-gray-50 py-12 px-8">
           <div className="max-w-7xl mx-auto">
+            {/* Generate Report Button */}
+            {analysis && (
+              <div className="mb-8 flex justify-end">
+                <button
+                  onClick={generatePDFReport}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#0f1628] hover:bg-[#1a2744] text-white font-medium transition-all shadow-lg"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  Download PDF Report
+                </button>
+              </div>
+            )}
+
             <div className="grid lg:grid-cols-2 gap-8 items-stretch">
               {/* Risk Assessment */}
               {analysis && (
