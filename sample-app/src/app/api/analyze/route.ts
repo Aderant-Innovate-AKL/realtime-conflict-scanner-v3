@@ -52,7 +52,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Use OpenAI for analysis
-    const prompt = `You are a conflict of interest and risk assessment analyst. Analyze the following news articles about "${searchTerms}" and identify potential conflicts of interest, legal issues, regulatory concerns, or reputational risks.
+    const prompt = `You are a legal conflict of interest analyst for a law firm. Your job is to analyze news articles about "${searchTerms}" to identify information that would be relevant when deciding whether the firm can ethically and legally take on this entity as a client.
+
+Focus specifically on identifying:
+1. **Mergers & Acquisitions** - Any M&A activity involving the entity, target companies, or acquiring parties
+2. **Partnerships & Joint Ventures** - Business partnerships, strategic alliances, or joint ventures
+3. **Litigation & Lawsuits** - Active or pending lawsuits, legal disputes, class actions (as plaintiff or defendant)
+4. **Regulatory Actions** - Government investigations, SEC inquiries, FTC actions, compliance issues, fines, sanctions
+5. **Disputes** - Contract disputes, IP disputes, employment disputes, shareholder disputes
+6. **Industry-wide Issues** - Sector-wide regulatory changes, antitrust concerns, or collective legal matters
+7. **Executive Moves** - C-suite changes, key personnel departures, executive controversies
+8. **Board Memberships** - Board appointments, resignations, or directors serving on multiple boards
+9. **Ownership Changes** - Significant stake acquisitions, divestitures, private equity involvement, activist investors
+10. **Other Conflict-Relevant News** - Bankruptcy, restructuring, reputational issues, adverse media coverage
 
 NEWS ARTICLES:
 ${articles
@@ -70,31 +82,31 @@ Article ${i + 1}:
 
 Provide your analysis in the following JSON format:
 {
-  "summary": "A brief 2-3 sentence overview of the overall risk assessment",
+  "summary": "A brief 2-3 sentence overview highlighting the most significant conflict-of-interest concerns for a law firm considering this client",
   "riskLevel": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
   "conflicts": [
     {
-      "title": "Brief title of the conflict",
+      "title": "Brief title describing the conflict type (e.g., 'Active Litigation with XYZ Corp')",
       "source": "Source article name",
-      "description": "Detailed description of the potential conflict",
+      "description": "Detailed description explaining why this poses a potential conflict of interest for the firm, including relevant parties, nature of the issue, and implications",
       "severity": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-      "url": "Article URL if relevant"
+      "url": "Article URL"
     }
   ],
   "recommendations": [
-    "Specific actionable recommendation 1",
-    "Specific actionable recommendation 2"
+    "Specific actionable recommendation for conflict clearance process",
+    "Additional due diligence steps"
   ]
 }
 
 Risk Level Guidelines:
-- LOW: Minor concerns, routine monitoring recommended
-- MEDIUM: Notable concerns requiring attention, enhanced due diligence recommended
-- HIGH: Significant red flags, immediate review and action required
-- CRITICAL: Severe issues, potential legal/regulatory exposure, immediate escalation required
+- LOW: No significant conflict indicators; standard intake procedures sufficient
+- MEDIUM: Potential conflicts identified; requires enhanced conflict check against existing clients and matters
+- HIGH: Significant conflict indicators; requires immediate review by conflicts counsel and potentially ethics committee
+- CRITICAL: Clear conflict-of-interest red flags; likely cannot represent this client without waivers or declining representation
 
-Generate a list of the top 10 potential conflicts of interest available in the articles.
-Be specific and cite actual content from the articles. Only include genuine concerns, not speculation.`;
+Analyze all articles and generate up to 10 potential conflicts of interest, prioritized by severity.
+Be specific and cite actual content from the articles. Focus on facts that would trigger a conflict check, not general business news.`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -108,7 +120,7 @@ Be specific and cite actual content from the articles. Only include genuine conc
           {
             role: "system",
             content:
-              "You are a professional risk and compliance analyst. Always respond with valid JSON only, no additional text.",
+              "You are a senior legal conflicts analyst at a law firm. Your expertise is identifying potential conflicts of interest that could prevent or complicate client representation. Always respond with valid JSON only, no additional text.",
           },
           {
             role: "user",
