@@ -340,19 +340,19 @@ export default function ConflictScanner() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/extract-keywords", {
+      const response = await fetch("/api/extract-parties", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to extract keywords");
+        throw new Error(errorData.error || "Failed to extract parties");
       }
 
       const data = await response.json();
       setKeywords((prev) => {
-        const newKeywords = data.keywords.filter(
+        const newKeywords = data.terms.filter(
           (k: string) => !prev.includes(k)
         );
         return [...prev, ...newKeywords];
